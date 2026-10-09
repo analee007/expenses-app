@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Expenses</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#fff0f5">
+<link rel="icon" href="icons/icon-192.png">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg,#fff);color:var(--text,#222);font-family:Arial,sans-serif;font-size:18px;transition:background .15s,color .15s}
+.app{max-width:560px;margin:auto;padding:24px 20px 42px}
+h1{font-size:25px;font-weight:400;margin:0 0 24px}
+.topbar{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.action{font:inherit;font-size:15px;background:var(--buttonBg,#fff);color:var(--text,#222);border:1px solid var(--line,#ddd);border-radius:12px;padding:11px 12px;cursor:pointer;touch-action:manipulation}
+.field{display:flex;align-items:center;margin:16px 0;gap:8px}
+.label{width:92px;flex:none}
+input{font:inherit;color:var(--text,#222);border:0;border-bottom:1px solid var(--line,#ddd);outline:0;background:transparent;padding:7px 4px;width:100%}
+input:focus{border-bottom-color:#777}
+.section{margin-top:42px}
+.section-head{font-size:19px;margin-bottom:13px}
+.section-head input{width:180px;border:0;padding:0;font-size:19px}
+.expense{display:flex;align-items:center;gap:11px;min-height:43px;margin:7px 0}
+.check{width:29px;height:29px;flex:none;border:3px solid #d9d9d9;border-radius:5px;background:#fff;padding:0;position:relative}
+.check.done{background:var(--accent,#e4bb00);border-color:var(--accent,#e4bb00)}
+.check.done:after{content:"✓";position:absolute;color:white;font-size:20px;font-weight:bold;left:3px;top:-1px}
+.name{flex:1;min-width:0;border:0}
+.amount{width:82px;text-align:right}
+.expense.done input{color:#bcbcbc;text-decoration:line-through}
+.add-expense{margin:8px 0 0 40px;border:0;background:transparent;color:var(--muted,#777);font:inherit;padding:6px 0}.delete-btn{font:inherit;font-size:13px;color:var(--muted,#888);background:transparent;border:1px solid var(--line,#ddd);border-radius:8px;padding:6px 8px;cursor:pointer;touch-action:manipulation}.section-tools{display:flex;justify-content:flex-end;margin-top:8px}.theme-panel{display:none;border:1px solid var(--line,#ddd);background:var(--soft,#fff9df);border-radius:14px;padding:12px;margin:-10px 0 22px}.theme-panel.open{display:block}.theme-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.theme-choice{display:flex;align-items:center;gap:8px;border:1px solid var(--line,#ddd);background:var(--buttonBg,#fff);color:var(--text,#222);border-radius:10px;padding:9px;font:inherit;font-size:15px;text-align:left}.swatch{width:20px;height:20px;border-radius:50%;border:1px solid #999;flex:none}.theme-choice.selected{outline:2px solid var(--accent,#e4bb00)}
+.summary{margin-top:52px}
+.sumrow{display:flex;justify-content:space-between;margin:15px 0}
+.sumrow span:last-child{font-weight:500}
+.note{font-size:14px;color:#888;margin-top:28px}
+.history{margin-top:30px;border-top:1px solid var(--line,#eee);padding-top:18px}
+.history-title{font-size:17px;margin-bottom:10px}
+.history-item{width:100%;text-align:left;background:var(--buttonBg,#fff);color:var(--text,#222);border:1px solid var(--line,#eee);border-radius:10px;padding:11px 13px;margin:6px 0;font:inherit}
+.history-item.active{border-color:var(--accent,#d4b300);background:var(--soft,#fff9df)}
+.empty{color:#999;font-size:14px}
+@media(max-width:390px){.app{padding:18px 14px 34px}body{font-size:16px}.label{width:72px}.action{font-size:14px;padding:10px}.expense{gap:7px}.check{width:25px;height:25px}.amount{width:70px}.section-head input{max-width:160px}}
+</style>
+</head>
+<body>
+<div class="app">
+<h1>Expenses</h1>
+
+<div class="topbar">
+  <button class="action" id="newBtn" type="button">＋ New tracker</button>
+  <button class="action" id="themeBtn" type="button">🎨 Theme</button>
+  <button class="action" id="deleteTrackerBtn" type="button">🗑️ Delete tracker</button>
+  <button class="action" id="backupBtn" type="button">⬇️ Backup data</button>
+  <button class="action" id="restoreBtn" type="button">⬆️ Restore backup</button>
+  <input id="restoreFile" type="file" accept="application/json,.json" hidden>
+</div>
+<div class="theme-panel" id="themePanel"><div style="margin-bottom:10px;font-size:15px">Choose a page theme</div><div class="theme-grid" id="themeGrid"></div></div>
+
+<div class="field"><div class="label">Date:</div><input id="date" type="date"></div>
+<div class="field"><div class="label">Rate:</div><input id="rate" type="number" step="0.0001" placeholder="0.0000"></div>
+<div class="field"><div class="label">Budget:</div><input id="budget" type="number" step="0.01" placeholder="0.00"></div>
+
+<div id="sections"></div>
+
+<div class="summary">
+  <div class="sumrow"><span>Total:</span><span id="total">₱0.00</span></div>
+  <div class="sumrow"><span>Remaining:</span><span id="remaining">—</span></div>
+</div>
+
+<div class="topbar" style="margin-top:34px">
+  <button class="action" id="addSectionBtn" type="button">＋ Add section</button>
+</div>
+
+<div class="history">
+  <div class="history-title">Saved trackers</div>
+  <div id="historyList"></div>
+</div>
+
+<div class="note">Your trackers are saved in this browser on this device. Use Backup data regularly to keep a copy, especially before changing phones or clearing browser data.</div>
+</div>
+
+<script>
+(function(){
+const KEY="simpleExpenseTrackersV3";
+const THEME_KEY="simpleExpenseThemeV1";
+const themes={"Clean White":{"bg":"#ffffff","text":"#222222","muted":"#888888","line":"#dddddd","accent":"#e4bb00","soft":"#fff9df","buttonBg":"#ffffff"},"Soft Pink":{"bg":"#fff8fb","text":"#38262e","muted":"#9b7784","line":"#ead7df","accent":"#e89ab6","soft":"#fff0f5","buttonBg":"#ffffff"},"Baby Blue":{"bg":"#f8fcff","text":"#263746","muted":"#738c9f","line":"#d6e5ef","accent":"#83bddd","soft":"#eaf6ff","buttonBg":"#ffffff"},"Sage Green":{"bg":"#f8fbf7","text":"#2f3b32","muted":"#7f9083","line":"#d7e2d9","accent":"#8eaa91","soft":"#edf5ee","buttonBg":"#ffffff"},"Lavender":{"bg":"#faf8ff","text":"#332d42","muted":"#8c829d","line":"#dfd8eb","accent":"#a99bd3","soft":"#f1edfb","buttonBg":"#ffffff"},"Oatmeal":{"bg":"#fcfaf5","text":"#3b352c","muted":"#928879","line":"#e5ded2","accent":"#c8a878","soft":"#f5eee2","buttonBg":"#ffffff"},"Soft Yellow":{"bg":"#fffdf4","text":"#3c3726","muted":"#918a6f","line":"#e8e1c7","accent":"#d7b62c","soft":"#fff6c9","buttonBg":"#ffffff"},"Dark Mode":{"bg":"#171717","text":"#f3f3f3","muted":"#aaaaaa","line":"#3b3b3b","accent":"#e4bb00","soft":"#302d1c","buttonBg":"#222222"}};
+function applyTheme(name){const t=themes[name]||themes["Clean White"];Object.entries(t).forEach(([k,v])=>document.documentElement.style.setProperty("--"+k,v));try{localStorage.setItem(THEME_KEY,name)}catch(e){}document.querySelectorAll(".theme-choice").forEach(b=>b.classList.toggle("selected",b.dataset.theme===name))}
+function renderThemes(){const grid=document.getElementById("themeGrid");Object.entries(themes).forEach(([name,t])=>{const b=document.createElement("button");b.type="button";b.className="theme-choice";b.dataset.theme=name;const sw=document.createElement("span");sw.className="swatch";sw.style.background=t.accent;const label=document.createElement("span");label.textContent=name;b.append(sw,label);b.addEventListener("click",()=>applyTheme(name));grid.appendChild(b)})}
+renderThemes();let savedTheme="Clean White";try{savedTheme=localStorage.getItem(THEME_KEY)||savedTheme}catch(e){}applyTheme(savedTheme);
+document.getElementById("themeBtn").addEventListener("click",()=>document.getElementById("themePanel").classList.toggle("open"));
+document.getElementById("deleteTrackerBtn").addEventListener("click",()=>{if(trackers.length<=1){if(confirm("This is your only tracker. Delete all its expenses and sections and start fresh?")){const fresh=newTracker(current().date);currentId=fresh.id;trackers=[fresh];save();render()}return}if(confirm("Delete this tracker and all its expenses? This cannot be undone.")){trackers=trackers.filter(t=>t.id!==currentId);currentId=trackers[0].id;save();render()}});
+document.getElementById("backupBtn").addEventListener("click",()=>{const payload={version:1,trackers,currentId,theme:(()=>{try{return localStorage.getItem(THEME_KEY)||"Clean White"}catch(e){return "Clean White"}})()};const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="expenses-backup-"+(new Date().toISOString().slice(0,10))+".json";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url)});
+document.getElementById("restoreBtn").addEventListener("click",()=>document.getElementById("restoreFile").click());
+document.getElementById("restoreFile").addEventListener("change",async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;try{const payload=JSON.parse(await file.text());if(!payload||!Array.isArray(payload.trackers)||!payload.trackers.length||!payload.trackers.every(t=>t&&t.id&&Array.isArray(t.sections)))throw new Error("invalid");if(confirm("Restore this backup? It will replace the trackers currently saved in this browser.")){trackers=payload.trackers;currentId=trackers.some(t=>t.id===payload.currentId)?payload.currentId:trackers[0].id;save();if(payload.theme&&themes[payload.theme])applyTheme(payload.theme);render();alert("Backup restored.")}}catch(err){alert("That file doesn't look like a valid Expenses backup.")}e.target.value=""});
+const blank=()=>({name:"",amount:"",done:false});
+function newTracker(date=""){return{
+ id:Date.now().toString(36)+Math.random().toString(36).slice(2),
+ date:date||new Date().toISOString().slice(0,10),
+ rate:"",budget:"",
+ sections:[
+  {name:"Iloilo",items:Array.from({length:7},blank)},
+  {name:"Bicol",items:Array.from({length:7},blank)}
+ ]
+}}
+let trackers=[];
+let currentId="";
+
+try{
+ const raw=localStorage.getItem(KEY);
+ if(raw){const x=JSON.parse(raw);if(Array.isArray(x.trackers)){trackers=x.trackers;currentId=x.currentId||""}}
+}catch(e){}
+if(!trackers.length){const t=newTracker();trackers=[t];currentId=t.id}
+
+function current(){return trackers.find(t=>t.id===currentId)||trackers[0]}
+function save(){
+ try{localStorage.setItem(KEY,JSON.stringify({trackers,currentId}))}catch(e){}
+ updateTotals();renderHistory();
+}
+function money(n){return "₱"+Number(n||0).toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})}
+function updateTotals(){
+ const t=current(); let total=0;
+ t.sections.forEach(s=>s.items.forEach(i=>total+=Number(i.amount)||0));
+ document.getElementById("total").textContent=money(total);
+ document.getElementById("remaining").textContent=t.budget===""?"—":money(Number(t.budget)-total);
+}
+function render(){
+ const t=current();
+ document.getElementById("date").value=t.date||"";
+ document.getElementById("rate").value=t.rate||"";
+ document.getElementById("budget").value=t.budget||"";
+ const root=document.getElementById("sections");root.innerHTML="";
+ t.sections.forEach((section,si)=>{
+  const box=document.createElement("div");box.className="section";
+  const head=document.createElement("div");head.className="section-head";
+  const title=document.createElement("input");title.value=section.name;title.placeholder="Section name";
+  title.addEventListener("input",e=>{section.name=e.target.value;save()});
+  head.appendChild(title);box.appendChild(head);
+  const sectionTools=document.createElement("div");sectionTools.className="section-tools";const delSection=document.createElement("button");delSection.type="button";delSection.className="delete-btn";delSection.textContent="🗑️ Delete section";delSection.addEventListener("click",()=>{if(confirm("Delete this section and all expenses in it?")){t.sections.splice(si,1);save();render()}});sectionTools.appendChild(delSection);box.appendChild(sectionTools);
+  section.items.forEach(item=>{
+   const row=document.createElement("div");row.className="expense"+(item.done?" done":"");
+   const check=document.createElement("button");check.type="button";check.className="check"+(item.done?" done":"");
+   check.addEventListener("click",()=>{item.done=!item.done;save();render()});
+   const name=document.createElement("input");name.className="name";name.placeholder="Expense";name.value=item.name;
+   name.addEventListener("input",e=>{item.name=e.target.value;save()});
+   const amount=document.createElement("input");amount.className="amount";amount.type="number";amount.step="0.01";amount.placeholder="₱0";amount.value=item.amount;
+   amount.addEventListener("input",e=>{item.amount=e.target.value;save()});
+   const delItem=document.createElement("button");delItem.type="button";delItem.className="delete-btn";delItem.textContent="×";delItem.setAttribute("aria-label","Delete expense");delItem.addEventListener("click",()=>{if(confirm("Delete this expense?")){section.items=section.items.filter(x=>x!==item);save();render()}});row.append(check,name,amount,delItem);box.appendChild(row);
+  });
+  const add=document.createElement("button");add.type="button";add.className="add-expense";add.textContent="＋ Add expense";
+  add.addEventListener("click",()=>{section.items.push(blank());save();render()});
+  box.appendChild(add);root.appendChild(box);
+ });
+ updateTotals();renderHistory();
+}
+function renderHistory(){
+ const list=document.getElementById("historyList");list.innerHTML="";
+ const sorted=[...trackers].sort((a,b)=>b.date.localeCompare(a.date));
+ sorted.forEach(t=>{
+  const b=document.createElement("button");b.type="button";b.className="history-item"+(t.id===currentId?" active":"");
+  const total=t.sections.reduce((sum,s)=>sum+s.items.reduce((x,i)=>x+(Number(i.amount)||0),0),0);
+  b.textContent=(t.date||"No date")+"  •  "+money(total);
+  b.addEventListener("click",()=>{currentId=t.id;save();render()});
+  list.appendChild(b);
+ });
+}
+document.getElementById("date").addEventListener("input",e=>{current().date=e.target.value;save()});
+document.getElementById("rate").addEventListener("input",e=>{current().rate=e.target.value;save()});
+document.getElementById("budget").addEventListener("input",e=>{current().budget=e.target.value;save()});
+
+document.getElementById("newBtn").addEventListener("click",()=>{
+ const t=newTracker();
+ trackers.push(t);currentId=t.id;save();render();
+});
+document.getElementById("addSectionBtn").addEventListener("click",()=>{
+ current().sections.push({name:"New section",items:[blank(),blank(),blank()]});save();render();
+});
+render();
+})();
+</script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("service-worker.js").catch(()=>{}));}</script>
+</body>
+</html>
